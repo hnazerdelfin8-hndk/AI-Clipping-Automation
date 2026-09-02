@@ -9,8 +9,7 @@ This repository includes a Dev Container configuration. For a **new Codespace**,
 For an **existing Codespace**, run once:
 
 ```bash
-chmod +x setup.sh start.sh
-./setup.sh
+bash setup.sh
 ```
 
 Then create `.env` from `.env.example` and add your Groq key. Never commit `.env`.
@@ -32,8 +31,7 @@ MAX_UPLOAD_MB=500
 Start the app:
 
 ```bash
-chmod +x start.sh
-./start.sh
+bash start.sh
 ```
 
 Open forwarded **port 8000** in the Codespace browser. The dashboard has a system-health indicator. Upload a short MP4 (30–120 seconds is ideal for the first real test).
