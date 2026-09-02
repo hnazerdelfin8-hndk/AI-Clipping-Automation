@@ -1,19 +1,21 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>AI Clipping Automation</title>
-<style>body{font-family:system-ui;max-width:700px;margin:40px auto;padding:20px}button{padding:12px 18px;border:0;border-radius:10px;background:#111;color:#fff}#status{white-space:pre-wrap;margin-top:20px}.clip{display:block;margin:10px 0}</style>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0d12;color:#f5f7fb;font-family:system-ui,-apple-system,sans-serif}.wrap{max-width:760px;margin:auto;padding:28px 18px 48px}.card{background:#141820;border:1px solid #292f3a;border-radius:20px;padding:22px;margin-top:18px}.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#202633;font-size:12px;color:#b8c1d1}h1{font-size:32px;margin:14px 0 8px}p{color:#aeb7c6;line-height:1.5}.drop{display:block;border:1px dashed #465064;border-radius:16px;padding:20px;text-align:center;cursor:pointer}.drop input{width:100%}button{width:100%;padding:14px 18px;border:0;border-radius:12px;background:#fff;color:#101319;font-weight:700;font-size:16px;margin-top:14px}button:disabled{opacity:.5}.status{margin-top:16px;padding:12px;border-radius:12px;background:#0d1118;white-space:pre-wrap}.progress{height:8px;background:#272d38;border-radius:99px;overflow:hidden;margin-top:12px}.bar{height:100%;width:0;background:#fff;transition:width .3s}.clip{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid #292f3a}.clip:last-child{border-bottom:0}.clip a{color:#fff;font-weight:700;text-decoration:none}.meta{font-size:12px;color:#8f99aa}.hidden{display:none}.error{color:#ff9c9c}.ok{color:#a8f0c0}</style>
 </head>
-<body>
-<h1>AI Clipping Automation</h1>
-<p>Upload an MP4 and let AI find and render short clips.</p>
-<input id="v" type="file" accept="video/*">
-<button onclick="go()">Process Video</button>
-<div id="status"></div><div id="clips"></div>
-<script>
-async function go(){const f=document.getElementById('v').files[0];if(!f)return alert('Choose a video first.');const fd=new FormData();fd.append('video',f);status.textContent='Uploading...';const r=await fetch('/api/process',{method:'POST',body:fd});const j=await r.json();if(!r.ok){status.textContent=j.detail||'Upload failed';return}status.textContent='Job '+j.job_id+' started...';poll(j.job_id)}
-async function poll(id){const r=await fetch('/api/jobs/'+id);const j=await r.json();status.textContent='Status: '+j.status;if(j.status==='done'){clips.innerHTML=j.clips.map(c=>`<a class="clip" href="/api/jobs/${id}/download/${encodeURIComponent(c.file)}">Download ${c.file} — ${c.title} (score ${c.score})</a>`).join('')}else if(j.status==='error'){status.textContent+='\n'+j.error}else setTimeout(()=>poll(id),3000)}
-</script>
-</body>
-</html>
+<body><main class="wrap">
+<span class="badge">AI VIDEO CLIPPING MVP</span><h1>Turn long videos into short clips.</h1><p>Upload a video. AI transcribes it, finds strong moments, creates 9:16 clips, burns captions, and runs quality checks.</p>
+<section class="card"><label class="drop">📹<br><span id="name">Choose MP4 / MOV / MKV / WEBM</span><input id="video" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/webm,video/*" hidden></label><button id="go">Process Video</button><div id="status" class="status hidden"></div><div class="progress hidden" id="progress"><div class="bar" id="bar"></div></div></section>
+<section class="card hidden" id="results"><h2>Generated Clips</h2><div id="clips"></div></section>
+</main><script>
+const $=id=>document.getElementById(id);const file=$('video');const go=$('go');const status=$('status');const results=$('results');const clips=$('clips');const bar=$('bar');
+$('name').parentElement.onclick=()=>file.click();file.onchange=()=>{$('name').textContent=file.files[0]?.name||'Choose a video'};
+function show(text,cls=''){status.className='status '+cls;status.textContent=text;status.classList.remove('hidden')}
+async function goProcess(){const f=file.files[0];if(!f)return show('Choose a video first.','error');go.disabled=true;results.classList.add('hidden');$('progress').classList.remove('hidden');bar.style.width='8%';show('Uploading video…');try{const fd=new FormData();fd.append('video',f);const r=await fetch('/api/process',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(j.detail||'Upload failed');show('AI is processing your video…');bar.style.width='25%';await poll(j.job_id)}catch(e){show(e.message,'error');go.disabled=false}}
+async function poll(id){try{const r=await fetch('/api/jobs/'+id);const j=await r.json();if(j.status==='error'){show('Processing failed:\n'+(j.error||'Unknown error'),'error');bar.style.width='0';go.disabled=false;return}if(j.status==='done'){bar.style.width='100%';show('Done — '+(j.clips?.length||0)+' clip(s) generated.','ok');clips.innerHTML=(j.clips||[]).map(c=>`<div class="clip"><div><strong>${escapeHtml(c.title||'AI Clip')}</strong><div class="meta">Score ${c.score??0} · ${c.qa?.ok?'QA passed':'QA failed'}</div></div><a href="/api/jobs/${id}/download/${encodeURIComponent(c.file)}">Download</a></div>`).join('');results.classList.remove('hidden');go.disabled=false;return}bar.style.width=j.status==='processing'?'60%':'35%';setTimeout(()=>poll(id),2500)}catch(e){show('Connection error. Retrying…','error');setTimeout(()=>poll(id),4000)}}
+function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}go.onclick=goProcess;
+</script></body></html>
